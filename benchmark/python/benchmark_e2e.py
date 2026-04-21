@@ -322,14 +322,13 @@ def run_benchmark(args, batch_size, prompt_length, generation_length, max_length
         gen.append_tokens(batched_seed_tokens)
         while not gen.is_done() and gen.token_count() < prompt_length:
             gen.generate_next_token()
-        generated_text = tokenizer.decode(gen.get_sequence(0))
-        if not args.reuse_generator:
-            del gen
-        text = [generated_text] * batch_size
-        prompt = f"{args.chat_template.format(input=text)}"
-        tokens = tokenizer.encode(prompt)
+
+        seq0 = np.asarray(gen.get_sequence(0))
+        tokens = np.tile(seq0, batch_size)
         prompt_length = len(tokens)
         max_length = prompt_length + generation_length
+        if not args.reuse_generator:
+            del gen
 
     if args.verbose:
         print("Running warmup runs...")
