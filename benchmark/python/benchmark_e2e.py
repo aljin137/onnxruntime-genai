@@ -324,7 +324,13 @@ def run_benchmark(args, batch_size, prompt_length, generation_length, max_length
             gen.generate_next_token()
 
         seq0 = np.asarray(gen.get_sequence(0))
-        tokens = np.tile(seq0, batch_size)
+        # Pre-tile batched tokens for the warmup/benchmark runs; the benchmark
+        # loop re-encodes `prompt` to measure tokenize time, but its result is
+        # overridden with `_generated_tokens` to avoid decode/re-encode drift
+        # or list-repr bloat pushing past GeneratorParams.max_length.
+        _generated_tokens = np.tile(seq0, batch_size)
+        prompt = tokenizer.decode(seq0)
+        tokens = _generated_tokens
         prompt_length = len(tokens)
         max_length = prompt_length + generation_length
         if not args.reuse_generator:
@@ -365,6 +371,8 @@ def run_benchmark(args, batch_size, prompt_length, generation_length, max_length
 
         if args.use_random_tokens:
             tokens = _random_tokens
+        elif need_generate_prompt:
+            tokens = _generated_tokens
 
         if args.reuse_generator:
             generator.rewind_to(0)
