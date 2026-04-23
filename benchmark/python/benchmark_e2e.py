@@ -184,17 +184,18 @@ def run_benchmark_memory(args, batch_size, prompt_length, generation_length, max
     peak_gpu_memory = 0.0
     peak_cpu_memory = 0.0
 
-    if IS_NVIDIA_SYSTEM:
-        monitor_thread = threading.Thread(target=monitor_gpu_memory)
-    else:
-        monitor_thread = threading.Thread(target=monitor_cpu_memory)
-
+    target = monitor_gpu_memory if IS_NVIDIA_SYSTEM else monitor_cpu_memory
+    # daemon=True + bounded join so an exception in run_benchmark() (or a
+    # wedged nvidia-smi call inside the monitor) can't keep the interpreter
+    # alive after main() returns.
+    monitor_thread = threading.Thread(target=target, daemon=True)
     monitor_thread.start()
 
-    metrics = run_benchmark(args, batch_size, prompt_length, generation_length, max_length)
-
-    stop_monitoring = True
-    monitor_thread.join()
+    try:
+        metrics = run_benchmark(args, batch_size, prompt_length, generation_length, max_length)
+    finally:
+        stop_monitoring = True
+        monitor_thread.join(timeout=5.0)
 
     if IS_NVIDIA_SYSTEM:
         metrics.append(peak_gpu_memory)
