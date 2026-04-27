@@ -431,10 +431,17 @@ def run_benchmark(args, batch_size, prompt_length, generation_length, max_length
     print(f"Average Prompt Processing Latency (per token): {avg_per_token_prompt_latency_ms} ms")
     print(f"Average Prompt Processing Throughput (per token): {avg_per_token_prompt_thrpt} tps")
 
-    # Calculate token generation input prep metrics
-    avg_token_gen_latency_s = sum(token_gen_times) / len(token_gen_times)
-    avg_token_gen_latency_ms = avg_token_gen_latency_s * 1000
-    avg_token_gen_thrpt = batch_size * (1 / avg_token_gen_latency_s)
+    # Calculate token generation input prep metrics. token_gen_times is empty
+    # when the generator reported is_done() right after the first decoded token
+    # (which is timed into sampling_times), so no further tokens were generated.
+    if token_gen_times:
+        avg_token_gen_latency_s = sum(token_gen_times) / len(token_gen_times)
+        avg_token_gen_latency_ms = avg_token_gen_latency_s * 1000
+        avg_token_gen_thrpt = batch_size * (1 / avg_token_gen_latency_s)
+    else:
+        avg_token_gen_latency_s = 0
+        avg_token_gen_latency_ms = 0
+        avg_token_gen_thrpt = 0
     print(f"Average Token Generation Latency (per token): {avg_token_gen_latency_ms} ms")
     print(f"Average Token Generation Throughput (per token): {avg_token_gen_thrpt} tps")
 
